@@ -39,21 +39,11 @@ int main() {
                                 &permissions);
 
   while (1) {
-    std::cout << "producer) try get a render buffer! \n";
-    int n;
-    screen_get_stream_property_iv(stream_p, SCREEN_PROPERTY_RENDER_BUFFER_COUNT,
-                                  &n);
-
-    std::cout << "producer) render buffer count: " << n << "\n";
-    screen_get_stream_property_iv(stream_p, SCREEN_PROPERTY_BUFFER_COUNT, &n);
-    std::cout << "producer) buffer count: " << n << "\n";
-
     screen_buffer_t stream_buf = nullptr;
     failed = screen_get_stream_property_pv(  // buffers property
         /* A handle to the buffer or buffers available for rendering. */
         stream_p, SCREEN_PROPERTY_RENDER_BUFFERS, (void **)&stream_buf);
-    //    stream_p, SCREEN_PROPERTY_BUFFERS, (void**)&stream_buf);
-    //  stream_p, SCREEN_PROPERTY_FRONT_BUFFERS, (void**)&stream_buf);
+
     if (failed == -1) {
       std::cout << "failed to get stream buffer\n";
       return -1;
@@ -68,13 +58,17 @@ int main() {
     screen_get_buffer_property_pv(stream_buf, SCREEN_PROPERTY_POINTER,
                                   &pointer);
 
-    *(char *)pointer = 0xff;
+    for (int i = 0; i < 720; i++) {
+      for (int j = 0; j < 720; j++) {
+        ((char *)pointer)[i * 720 + j] = 0x00;
+      }
+    }
+    //*(char *)pointer = 0xff;
 
-    std::cout << "producer) post stream! \n";
     auto success =
         screen_post_stream(stream_p, stream_buf, 0, /* lect cnt is zero */
                            nullptr, 0);
-    // nullptr, 0);
+
     if (success == -1) {
       std::cout << "failed to post stream\n";
     }

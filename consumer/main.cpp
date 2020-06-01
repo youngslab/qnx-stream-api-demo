@@ -3,6 +3,35 @@
 #include <iostream>
 #include <thread>
 
+auto create_window(screen_context_t screen_ctx) -> screen_window_t {
+  screen_window_t screen_win;
+
+  screen_create_window(&screen_win, screen_ctx);
+
+  screen_set_window_property_iv(
+      screen_win, SCREEN_PROPERTY_USAGE,
+      (const int[]){SCREEN_USAGE_OPENGL_ES2 | SCREEN_USAGE_WRITE |
+                    SCREEN_USAGE_NATIVE});
+
+  int buffer_size[2] = {720, 720};
+  screen_set_window_property_iv(screen_win, SCREEN_PROPERTY_BUFFER_SIZE,
+                                buffer_size);
+
+  screen_set_window_property_iv(screen_win, SCREEN_PROPERTY_FORMAT,
+                                (const int[]){SCREEN_FORMAT_RGBA8888});
+  int nbuffers = 2;
+  screen_create_window_buffers(screen_win, nbuffers);
+
+  return screen_win;
+}
+
+auto get_render_buffer(screen_window_t screen_win) -> screen_buffer_t {
+  screen_buffer_t screen_wbuf[2] = {0};
+  screen_get_window_property_pv(screen_win, SCREEN_PROPERTY_RENDER_BUFFERS,
+                                (void **)&screen_wbuf);
+  return screen_wbuf[0];
+}
+
 int main() {
   std::cout << "consumer\n";
 
@@ -11,6 +40,9 @@ int main() {
 
   screen_stream_t stream_c;
   screen_create_stream(&stream_c, screen_ctx);
+
+  // create a context
+  screen_window_t screen_win = create_window(screen_ctx);
 
   // get producers' stream
   screen_event_t event;
@@ -22,7 +54,7 @@ int main() {
   /* Create an event so that you can retrieve an event from Screen. */
   screen_create_event(&event);
 
-  // std::thread renderer;
+  std::thread renderer;
 
   while (1) {
     std::cout << "consumer) waiting evetns\n";
@@ -74,41 +106,31 @@ int main() {
             return -1;
           }
 
-          // check stream properties
-          int n;
-          screen_get_stream_property_iv(stream_c, SCREEN_PROPERTY_BUFFER_COUNT,
-                                        &n);
-          std::cout << "consumer) producer info - buffer count: " << n << "\n";
+          renderer = std::thread([&]() {
+            screen_buffer_t sbuffer = nullptr;
+            while (1) {
+              // blocks until there's a front buffer available to acquire.
+              // if don't block, SCREEN_ACQUIRE_DONT_BLOCK
+              success = screen_acquire_buffer(&sbuffer, stream_c, nullptr,
+                                              nullptr, nullptr, 0);
+              if (success == -1) {
+                std::cout << "consumer) failed to acquired_buffer\n";
+                break;
+              }
 
-          screen_get_stream_property_iv(
-              stream_c, SCREEN_PROPERTY_RENDER_BUFFER_COUNT, &n);
-          std::cout << "consumer) producer info - render buffer count: " << n
-                    << "\n";
+              // get window buffer
+              auto wbuffer = get_render_buffer(screen_win);
+              if (wbuffer != nullptr) {
+                screen_blit(screen_ctx, wbuffer, sbuffer, nullptr);
+                screen_post_window(screen_win, wbuffer, 0, nullptr, 0);
+              }
 
-          std::cout << "consumer) Let's redering!\n";
-          screen_buffer_t sbuffer = nullptr;
-          while (1) {
-            // blocks until there's a front buffer available to acquire.
-            // if don't block, SCREEN_ACQUIRE_DONT_BLOCK
-            success = screen_acquire_buffer(&sbuffer, stream_c, nullptr,
-                                            nullptr, nullptr, 0);
-            if (success != -1) {
-              std::cout << "consumer) success to acquire a buffer\n";
-            } else {
-              printf("consumer) screen_acquire_buffer() failed, err=%d\n",
-                     errno);
-              break;
+              if (sbuffer != nullptr) {
+                screen_release_buffer(sbuffer);
+              }
             }
-
-            if (sbuffer != nullptr) {
-              screen_release_buffer(sbuffer);
-              std::cout << "consumer) release!\n";
-            } else {
-              std::cout << "consumer) failed to release!\n";
-            }
-          }
-          std::cout << "consumer) finished!\n";
-          //});
+            std::cout << "consumer) finish to render !\n";
+          });
         }
       }
     }
