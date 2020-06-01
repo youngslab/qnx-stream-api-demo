@@ -60,7 +60,7 @@ int main() {
 
     for (int i = 0; i < 720; i++) {
       for (int j = 0; j < 720; j++) {
-        ((char *)pointer)[i * 720 + j] = 0x00;
+        ((char *)pointer)[(i * 720 + j) * 4 + 2] += 5;
       }
     }
     //*(char *)pointer = 0xff;
