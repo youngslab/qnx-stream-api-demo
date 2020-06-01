@@ -15,3 +15,6 @@ add_executable(consumer consumer/main.cpp)
 target_link_libraries(consumer screen::screen EGL GLESv2)
 set_target_properties(consumer PROPERTIES CXX_STANDARD 17)
 
+add_executable(prod test/main.cpp)
+target_link_libraries(prod screen::screen EGL GLESv2)
+set_target_properties(prod PROPERTIES CXX_STANDARD 17)
