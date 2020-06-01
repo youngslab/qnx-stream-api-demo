@@ -22,7 +22,7 @@ int main() {
   /* Create an event so that you can retrieve an event from Screen. */
   screen_create_event(&event);
 
-  std::thread renderer;
+  // std::thread renderer;
 
   while (1) {
     std::cout << "consumer) waiting evetns\n";
@@ -60,31 +60,55 @@ int main() {
           screen_get_stream_property_iv(stream_p, SCREEN_PROPERTY_ID,
                                         &stream_p_id);
 
-          std::cout << "found producer : " << stream_p_id << "\n";
+          std::cout << "consumer) found producer : " << stream_p_id << "\n";
 
-          renderer = std::thread([&]() {
-            std::cout << "Let's redering!\n";
-            auto success = screen_consume_stream_buffers(stream_c, 0, stream_p);
-            if (success == -1) {
-              std::cout << " failed to consume the stream\n";
-              return -1;
+          // This function is used when the consumer of a stream is in a
+          // different process. Establish the connection between the consumer's
+          // stream and the producer's stream
+          auto success =
+              screen_consume_stream_buffers(stream_c,  // consumer
+                                            0,  // num of the buffers shared
+                                            stream_p);  // producer
+          if (success == -1) {
+            std::cout << " failed to consume the stream\n";
+            return -1;
+          }
+
+          // check stream properties
+          int n;
+          screen_get_stream_property_iv(stream_c, SCREEN_PROPERTY_BUFFER_COUNT,
+                                        &n);
+          std::cout << "consumer) producer info - buffer count: " << n << "\n";
+
+          screen_get_stream_property_iv(
+              stream_c, SCREEN_PROPERTY_RENDER_BUFFER_COUNT, &n);
+          std::cout << "consumer) producer info - render buffer count: " << n
+                    << "\n";
+
+          std::cout << "consumer) Let's redering!\n";
+          screen_buffer_t sbuffer = nullptr;
+          while (1) {
+            // blocks until there's a front buffer available to acquire.
+            // if don't block, SCREEN_ACQUIRE_DONT_BLOCK
+            success = screen_acquire_buffer(&sbuffer, stream_c, nullptr,
+                                            nullptr, nullptr, 0);
+            if (success != -1) {
+              std::cout << "consumer) success to acquire a buffer\n";
+            } else {
+              printf("consumer) screen_acquire_buffer() failed, err=%d\n",
+                     errno);
+              break;
             }
-            screen_buffer_t buffer_1;
-            while (1) {
-              auto success =
-                  screen_acquire_buffer(&buffer_1, stream_c, nullptr, nullptr,
-                                        nullptr, SCREEN_ACQUIRE_DONT_BLOCK);
-              if (success == -1) {
-                std::cout << "failed to acquire a buffer\n";
-                break;
-              }
-              //...
-              //
-              screen_release_buffer(buffer_1);
-              std::cout << "release buffer\n";
+
+            if (sbuffer != nullptr) {
+              screen_release_buffer(sbuffer);
+              std::cout << "consumer) release!\n";
+            } else {
+              std::cout << "consumer) failed to release!\n";
             }
-            std::cout << "finished!\n";
-          });
+          }
+          std::cout << "consumer) finished!\n";
+          //});
         }
       }
     }
@@ -125,6 +149,7 @@ int main() {
         }
       }
     }
+    // rendering??
   }
   screen_destroy_event(event);
 }

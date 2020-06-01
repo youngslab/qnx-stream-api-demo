@@ -34,20 +34,28 @@ int main() {
   screen_get_stream_property_iv(stream_p, SCREEN_PROPERTY_PERMISSIONS,
                                 &permissions);
   /* Allow processes in the same group to access the stream */
-  permissions |= SCREEN_PERMISSION_IRGRP;
+  permissions |= SCREEN_PERMISSION_IROTH;
   screen_set_stream_property_iv(stream_p, SCREEN_PROPERTY_PERMISSIONS,
                                 &permissions);
 
   while (1) {
-    std::cout << "post stream! \n";
+    std::cout << "producer) try get a render buffer! \n";
+    int n;
+    screen_get_stream_property_iv(stream_p, SCREEN_PROPERTY_RENDER_BUFFER_COUNT,
+                                  &n);
+
+    std::cout << "producer) render buffer count: " << n << "\n";
+    screen_get_stream_property_iv(stream_p, SCREEN_PROPERTY_BUFFER_COUNT, &n);
+    std::cout << "producer) buffer count: " << n << "\n";
+
     screen_buffer_t stream_buf = nullptr;
     failed = screen_get_stream_property_pv(  // buffers property
         /* A handle to the buffer or buffers available for rendering. */
-        stream_p, SCREEN_PROPERTY_RENDER_BUFFERS, (void**)&stream_buf);
-    //  stream_p, SCREEN_PROPERTY_BUFFERS, (void**)&stream_buf);
+        stream_p, SCREEN_PROPERTY_RENDER_BUFFERS, (void **)&stream_buf);
+    //    stream_p, SCREEN_PROPERTY_BUFFERS, (void**)&stream_buf);
     //  stream_p, SCREEN_PROPERTY_FRONT_BUFFERS, (void**)&stream_buf);
     if (failed == -1) {
-      std::cout << "failed to get  stream buffer\n";
+      std::cout << "failed to get stream buffer\n";
       return -1;
     }
 
@@ -56,7 +64,19 @@ int main() {
       return -1;
     }
 
-    screen_post_stream(stream_p, stream_buf, 0, /* lect cnt is zero */
-                       nullptr, SCREEN_WAIT_IDLE);
+    void *pointer;
+    screen_get_buffer_property_pv(stream_buf, SCREEN_PROPERTY_POINTER,
+                                  &pointer);
+
+    *(char *)pointer = 0xff;
+
+    std::cout << "producer) post stream! \n";
+    auto success =
+        screen_post_stream(stream_p, stream_buf, 0, /* lect cnt is zero */
+                           nullptr, 0);
+    // nullptr, 0);
+    if (success == -1) {
+      std::cout << "failed to post stream\n";
+    }
   }
 }
