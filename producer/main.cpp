@@ -8,8 +8,8 @@ int main() {
   screen_create_context(&screen_pctx, SCREEN_APPLICATION_CONTEXT);
   /* Create the producer's stream */
   screen_stream_t stream_p;
-  auto failed = screen_create_stream(&stream_p, screen_pctx);
-  if (failed == -1) {
+  auto success = screen_create_stream(&stream_p, screen_pctx);
+  if (success == -1) {
     std::cout << "failed to create stream \n";
     return -1;
   }
@@ -24,8 +24,8 @@ int main() {
       (const int[]){SCREEN_USAGE_OPENGL_ES2 | SCREEN_USAGE_WRITE |
                     SCREEN_USAGE_NATIVE});
 
-  failed = screen_create_stream_buffers(stream_p, 2);
-  if (failed == -1) {
+  success = screen_create_stream_buffers(stream_p, 2);
+  if (success == -1) {
     std::cout << "failed to create stream buffer\n";
     return -1;
   }
@@ -38,13 +38,13 @@ int main() {
   screen_set_stream_property_iv(stream_p, SCREEN_PROPERTY_PERMISSIONS,
                                 &permissions);
 
+  screen_buffer_t stream_buf = nullptr;
   while (1) {
-    screen_buffer_t stream_buf = nullptr;
-    failed = screen_get_stream_property_pv(  // buffers property
+    success = screen_get_stream_property_pv(  // buffers property
         /* A handle to the buffer or buffers available for rendering. */
         stream_p, SCREEN_PROPERTY_RENDER_BUFFERS, (void **)&stream_buf);
 
-    if (failed == -1) {
+    if (success == -1) {
       std::cout << "failed to get stream buffer\n";
       return -1;
     }
@@ -65,10 +65,8 @@ int main() {
     }
     //*(char *)pointer = 0xff;
 
-    auto success =
-        screen_post_stream(stream_p, stream_buf, 0, /* lect cnt is zero */
-                           nullptr, 0);
-
+    success = screen_post_stream(stream_p, stream_buf, 0, /* lect cnt is zero */
+                                 nullptr, 0);
     if (success == -1) {
       std::cout << "failed to post stream\n";
     }
